@@ -6,6 +6,20 @@ from sqlalchemy import create_engine
 st.title("Sistema de Seguimiento Académico")
 st.write("Bienvenido al portal de consulta de tareas.")
 
+# Truco analítico: Forzar letras negras únicamente al momento de imprimir en PDF
+st.markdown(
+    """
+    <style>
+    @media print {
+        h1, h2, h3, p, span, div, table, td, th {
+            color: #000000 !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # 2. Conexión con la base de datos SQLite que creamos en DBeaver
 engine = create_engine("sqlite:///clase")
 
