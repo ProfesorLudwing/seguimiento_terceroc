@@ -22,21 +22,19 @@ alumno_seleccionado = st.selectbox(
 # 5. Filtrar la tabla de datos para que solo contenga los renglones de ese alumno
 datos_filtrados = df[df["nombre"] == alumno_seleccionado]
 
-# 6. Mostrar el resultado de la consulta personalizada en la web
-st.subheader(f"Estado actual de: {alumno_seleccionado}")
-st.table(datos_filtrados)
-# 7. Botón inteligente para generar e imprimir la guía de avance en PDF
-st.markdown("---")
-st.write("¿Necesitas tu boleta física o una guía de estudio?")
+# 6. Seleccionar y ordenar las columnas para la vista del alumno
+columnas_vista = ["tarea", "estado", "calificacion", "fecha_limite"]
+tabla_final = datos_filtrados[columnas_vista]
 
-# Al presionar este botón, se activa el comando de impresión del dispositivo del alumno
-if st.button("🖨️ Generar e Imprimir mi Guía de Avance (PDF)"):
-    # Añadimos un pequeño truco visual para que al abrir la ventana de impresión se enfoque en sus datos
-    st.write("💡 *Consejo: En la ventana que se abrirá, selecciona 'Guardar como PDF' o elige tu impresora.*")
-    
-    # Este comando de JavaScript le ordena a Chrome/Edge de tu alumno abrir el menú de impresión nativo
+# 7. Mostrar la tabla personalizada en la web
+st.subheader(f"Estado actual de: {alumno_seleccionado}")
+st.table(tabla_final)
+
+# 8. Botón nativo de impresión
+st.markdown("---")
+if st.button("🖨️ Generar mi Guía de Avance (PDF)"):
+    st.write("💡 *Consejo: Selecciona 'Guardar como PDF' en la ventana del sistema.*")
     st.components.v1.html(
         "<script>window.print();</script>",
         height=0
     )
-
