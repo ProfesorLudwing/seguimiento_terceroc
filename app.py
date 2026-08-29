@@ -25,4 +25,18 @@ datos_filtrados = df[df["nombre"] == alumno_seleccionado]
 # 6. Mostrar el resultado de la consulta personalizada en la web
 st.subheader(f"Estado actual de: {alumno_seleccionado}")
 st.table(datos_filtrados)
+# 7. Botón inteligente para generar e imprimir la guía de avance en PDF
+st.markdown("---")
+st.write("¿Necesitas tu boleta física o una guía de estudio?")
+
+# Al presionar este botón, se activa el comando de impresión del dispositivo del alumno
+if st.button("🖨️ Generar e Imprimir mi Guía de Avance (PDF)"):
+    # Añadimos un pequeño truco visual para que al abrir la ventana de impresión se enfoque en sus datos
+    st.write("💡 *Consejo: En la ventana que se abrirá, selecciona 'Guardar como PDF' o elige tu impresora.*")
+    
+    # Este comando de JavaScript le ordena a Chrome/Edge de tu alumno abrir el menú de impresión nativo
+    st.components.v1.html(
+        "<script>window.print();</script>",
+        height=0
+    )
 
