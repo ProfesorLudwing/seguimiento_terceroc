@@ -156,3 +156,37 @@ st.sidebar.subheader("🖨 Honorarios e Impresión Rápida")
 st.sidebar.write("Para mandar a la impresora física esta pantalla completa de forma inmediata, utiliza el atajo:")
 st.sidebar.info("💻 **Presiona las teclas:**\n**Ctrl + P** (Windows)\n**Cmd + P** (Mac)")
 st.sidebar.caption("💡 *Nota: Recuerda desmarcar 'Gráficos de fondo' en la ventana de impresión para que la hoja salga blanca.*")
+
+
+# ==========================================
+# 📂 COMPONENTES INSTITUCIONALES (Descarga de Documentos Fijos)
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.subheader("📂 Documentos Oficiales")
+st.sidebar.write("Descarga los lineamientos del curso:")
+
+# 1. Enlace para el Acuerdo de Convivencia
+try:
+    with open("acuerdo_convivencia.pdf", "rb") as file_acuerdo:
+        st.sidebar.download_button(
+            label="📜 Descargar Acuerdo de Convivencia (PDF)",
+            data=file_acuerdo,
+            file_name="Acuerdo_de_Convivencia_3D.pdf",
+            mime="application/pdf",
+            use_column_width=True
+        )
+except FileNotFoundError:
+    st.sidebar.info("ℹ️ Archivo 'acuerdo_convivencia.pdf' no encontrado localmente.")
+
+# 2. Enlace para el Temario de la Clase
+try:
+    with open("temario_clase.pdf", "rb") as file_temario:
+        st.sidebar.download_button(
+            label="📚 Descargar Temario de la Clase (PDF)",
+            data=file_temario,
+            file_name="Temario_Clase_3D.pdf",
+            mime="application/pdf",
+            use_column_width=True
+        )
+except FileNotFoundError:
+    st.sidebar.info("ℹ️ Archivo 'temario_clase.pdf' no encontrado localmente.")
