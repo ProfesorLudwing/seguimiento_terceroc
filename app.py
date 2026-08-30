@@ -7,6 +7,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
 
+
+
+
 # 1. Conexión central a la base de datos SQL de DBeaver
 engine = create_engine("sqlite:///clase")
 
@@ -161,32 +164,59 @@ st.sidebar.caption("💡 *Nota: Recuerda desmarcar 'Gráficos de fondo' en la ve
 # ==========================================
 # 📂 COMPONENTES INSTITUCIONALES (Descarga de Documentos Fijos)
 # ==========================================
+# ==========================================
+# 📂 COMPONENTES INSTITUCIONALES (Apertura en Pestaña Nueva)
+# ==========================================
 st.sidebar.markdown("---")
 st.sidebar.subheader("📂 Documentos Oficiales")
-st.sidebar.write("Descarga los lineamientos del curso:")
+st.sidebar.write("Consulta los lineamientos del curso en una pestaña nueva:")
 
-# 1. Enlace para el Acuerdo de Convivencia
+# 1. Enlace para el Acuerdo de Convivencia en pestaña nueva
 try:
     with open("./acuerdo_convivencia.pdf", "rb") as file_acuerdo:
-        st.sidebar.download_button(
-            label="📜 Descargar Acuerdo de Convivencia (PDF)",
-            data=file_acuerdo,
-            file_name="Acuerdo_de_Convivencia_3D.pdf",
-            mime="application/pdf",
-            use_container_width=True 
-        )
+        bytes_acuerdo = file_acuerdo.read()
+        b64_acuerdo = base64.b64encode(bytes_acuerdo).decode('utf-8')
+        
+        # Generamos el botón estético color crema para la barra lateral que abre pestaña nueva
+        st.sidebar.markdown(f'''
+            <a href="data:application/pdf;base64,{b64_acuerdo}" target="_blank" style="
+                display: inline-block;
+                width: 100%;
+                text-align: center;
+                background-color: #EADFCA;
+                color: #000000;
+                padding: 10px 0px;
+                font-weight: bold;
+                text-decoration: none;
+                border-radius: 5px;
+                margin-bottom: 12px;
+                border: 1px solid #000000;
+            ">📜 Acuerdo de Convivencia</a>
+        ''', unsafe_allow_html=True)
 except FileNotFoundError:
-    st.sidebar.info("ℹ️ Archivo 'acuerdo_convivencia.pdf' no encontrado localmente.")
+    st.sidebar.info("ℹ️ Archivo 'acuerdo_convivencia.pdf' no encontrado.")
 
-# 2. Enlace para el Temario de la Clase
+# 2. Enlace para el Temario de la Clase en pestaña nueva
 try:
     with open("./temario_clase.pdf", "rb") as file_temario:
-        st.sidebar.download_button(
-            label="📚 Descargar Temario de la Clase (PDF)",
-            data=file_temario,
-            file_name="Temario_Clase_3D.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        bytes_temario = file_temario.read()
+        b64_temario = base64.b64encode(bytes_temario).decode('utf-8')
+        
+        # Generamos el segundo botón estético color crema para la barra lateral que abre pestaña nueva
+        st.sidebar.markdown(f'''
+            <a href="data:application/pdf;base64,{b64_temario}" target="_blank" style="
+                display: inline-block;
+                width: 100%;
+                text-align: center;
+                background-color: #EADFCA;
+                color: #000000;
+                padding: 10px 0px;
+                font-weight: bold;
+                text-decoration: none;
+                border-radius: 5px;
+                margin-bottom: 10px;
+                border: 1px solid #000000;
+            ">📚 Temario de la Clase</a>
+        ''', unsafe_allow_html=True)
 except FileNotFoundError:
-    st.sidebar.info("ℹ️ Archivo 'temario_clase.pdf' no encontrado localmente.")
+    st.sidebar.info("ℹ️ Archivo 'temario_clase.pdf' no encontrado.")
