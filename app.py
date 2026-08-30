@@ -1,83 +1,84 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-import io
 
-# 1. Configuración de la interfaz web
-st.title("Sistema de Seguimiento Académico")
-st.write("Bienvenido al portal de consulta de tareas.")
-
-# 2. Conexión y lectura de la base de datos SQL
+# 1. Conexión central a la base de datos SQL de DBeaver
 engine = create_engine("sqlite:///clase")
-df = pd.read_sql("SELECT * FROM seguimiento", engine)
 
-# 3. Buscador interactivo para alumnos y padres
-alumno_seleccionado = st.selectbox(
-    "Selecciona tu nombre para verificar tus calificaciones:",
-    df["nombre"].unique()
+# 2. Menú de navegación lateral para dividir la aplicación
+st.sidebar.title("🎒 Panel Escolar 3°D")
+opcion_pagina = st.sidebar.radio(
+    "Selecciona la sección que deseas consultar:",
+    ["📋 Seguimiento de Tareas", "📆 Alertas de Asistencia DGETI"]
 )
 
-# 4. Filtrar y ordenar el historial del estudiante
-datos_filtrados = df[df["nombre"] == alumno_seleccionado]
-columnas_vista = ["tarea", "estado", "calificacion", "fecha_limite"]
-tabla_final = datos_filtrados[columnas_vista]
-
-st.subheader(f"📋 Historial de entregas de: {alumno_seleccionado}")
-st.table(tabla_final)
-
-# 5. MOTOR DE GENERACIÓN AUTOMÁTICA DE PDF (Fondo blanco y letras negras)
-def generar_pdf_boleta(nombre_alumno, datos_tabla):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-    story = []
+# ==========================================
+# PÁGINA 1: SEGUIMIENTO DE TAREAS
+# ==========================================
+if opcion_pagina == "📋 Seguimiento de Tareas":
+    st.title("📊 Sistema de Seguimiento Académico")
+    st.write("Portal oficial de entrega de actividades.")
     
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, textColor=colors.black, spaceAfter=10)
-    text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=11, textColor=colors.black, spaceAfter=20)
+    df_tareas = pd.read_sql("SELECT * FROM seguimiento", engine)
+    alumno_sel = st.selectbox("Selecciona tu nombre:", df_tareas["nombre"].unique(), key="tareas_sel")
     
-    # Encabezado del documento físico
-    story.append(Paragraph("<b>BOLETA OFICIAL DE SEGUIMIENTO ACADÉMICO</b>", title_style))
-    story.append(Paragraph(f"<b>Estudiante:</b> {nombre_alumno}", text_style))
-    story.append(Spacer(1, 10))
+    datos_fil = df_tareas[df_tareas["nombre"] == alumno_sel]
+    tabla_final = datos_fil[["tarea", "estado", "calificacion", "fecha_limite"]]
     
-    # Estructurar la tabla para ReportLab
-    contenido_tabla = [["Actividad", "Estado", "Calificación", "Fecha Límite"]]
-    for fila in datos_tabla.values:
-        contenido_tabla.append([str(celda) for celda in fila])
-    
-    # Diseño estético de la tabla para impresión en papel (Letras negras, líneas limpias)
-    t = Table(contenido_tabla, colWidths=[120, 100, 80, 100])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#EADFCA")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 8),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
-        ('TEXTCOLOR', (0,1), (-1,-1), colors.black),
-        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-        ('BOTTOMPADDING', (0,1), (-1,-1), 6),
-    ]))
-    
-    story.append(t)
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    st.subheader(f"Estado de entregas de: {alumno_sel}")
+    st.table(tabla_final)
 
-# 6. Botón de un solo clic exclusivo para Alumnos y Padres de Familia
-st.markdown("---")
-st.subheader("📥 Descarga tu Guía en PDF")
+# ==========================================
+# PÁGINA 2: CONTROL DE ASISTENCIAS DGETI
+# ==========================================
+elif opcion_pagina == "📆 Alertas de Asistencia DGETI":
+    st.title("📆 Control de Horas de Clase y Asistencias")
+    st.write("Conforme al reglamento de la DGETI, alcanzar el 21% de inasistencias en horas causa baja automática.")
+    
+    # Leer la nueva tabla de asistencias de SQL
+    df_asist = pd.read_sql("SELECT * FROM asistencias", engine)
+    
+    # 🧠 TRUCO DE INGENIERÍA DE DATOS: Python toma el '8' de la primera celda de 'asis_max'
+    # e imagina que se repite en todas las filas vacías para corregir las faltas en internet
+    horas_maximas_semana = int(df_asist["asis_max"].dropna().iloc[0])
+    
+    alumno_sel = st.selectbox("Selecciona tu nombre para verificar tu estatus:", df_asist["nombre"].unique(), key="asistencias_sel")
+    
+    # Filtrar el renglón del alumno seleccionado
+    datos_alumno = df_asist[df_asist["nombre"] == alumno_sel].iloc[0]
+    
+    # Extraer el total de asistencias en horas registradas por el alumno
+    horas_asistidas = int(datos_alumno["asistencia"])
+    
+    # 🧮 CORRECCIÓN MATEMÁTICA: Python hace la resta real (8 - Asistencias) en el servidor
+    horas_faltas = horas_maximas_semana - horas_asistidas
+    
+    # Calcular el porcentaje de faltas acumulado real
+    porcentaje_faltas = (horas_faltas / horas_maximas_semana) * 100 if horas_maximas_semana > 0 else 0
+    
+    # 📊 DESPLIEGUE VISUAL DE MÉTRICAS EN INTERNET
+    st.subheader(f"Bitácora de asistencia de: {alumno_sel}")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="✅ Horas Asistidas", value=f"{horas_asistidas} de {horas_maximas_semana} hrs")
+    with col2:
+        st.metric(label="❌ Faltas Reales", value=f"{horas_faltas} hrs")
+    with col3:
+        st.metric(label="📊 Porcentaje de Faltas", value=f"{porcentaje_faltas:.1f}%")
 
-pdf_data = generar_pdf_boleta(alumno_seleccionado, tabla_final)
+    # 🚨 SEMÁFORO DE ALERTAS INTELIGENTE DGETI (Basado en la resta corregida)
+    if porcentaje_faltas >= 21:
+        st.error(f"🔴 **ALERTA CRÍTICA:** Has alcanzado o superado el límite del 21% de inasistencias en horas. Riesgo inminente de BAJA en el sistema DGETI.")
+    elif porcentaje_faltas >= 15:
+        st.warning(f"🟡 **ADVERTENCIA:** Tienes un {porcentaje_faltas:.1f}% de inasistencias en horas. Estás muy cerca del límite permitido (21%).")
+    else:
+        st.success(f"🟢 **ESTATUS REGULAR:** Tu porcentaje de faltas es del {porcentaje_faltas:.1f}%. Te mantienes en situación aprobatoria.")
 
-st.download_button(
-    label="📥 Descargar mi Boleta Oficial (PDF)",
-    data=pdf_data,
-    file_name=f"Boleta_{alumno_seleccionado.replace(' ', '_')}.pdf",
-    mime="application/pdf",
-    use_container_width=True
-)
+    # Mostrar el desglose por fechas del Excel (solo las columnas que contienen las fechas)
+    st.markdown("---")
+    st.write("📅 **Desglose de horas asistidas por día de clase:**")
+    
+    columnas_fechas = [c for c in df_asist.columns if "mayo" in c or "junio" in c]
+    df_fechas_alumno = df_asist[df_asist["nombre"] == alumno_sel][columnas_fechas]
+    st.table(df_fechas_alumno)
