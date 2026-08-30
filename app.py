@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
+import base64
 
 # 1. Conexión central a la base de datos SQL de DBeaver
 engine = create_engine("sqlite:///clase")
@@ -11,6 +17,54 @@ opcion_pagina = st.sidebar.radio(
     "Selecciona la sección que deseas consultar:",
     ["📋 Seguimiento de Tareas", "📆 Alertas de Asistencia DGETI"]
 )
+
+# 🧠 FUNCIÓN MAESTRA: Motor interno que fabrica el PDF con fondo blanco y letras negras
+def generar_pdf_oficial(nombre_alumno, datos_tabla, tipo_reporte, metricas_texto=""):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    story = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, textColor=colors.black, spaceAfter=10)
+    text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=11, textColor=colors.black, spaceAfter=15)
+    
+    # Encabezado institucional en el PDF
+    story.append(Paragraph(f"<b>REPORTE OFICIAL: {tipo_reporte.upper()}</b>", title_style))
+    story.append(Paragraph(f"<b>Estudiante:</b> {nombre_alumno}", text_style))
+    if metricas_texto:
+        story.append(Paragraph(f"<b>Resumen de Rendimiento:</b> {metricas_texto}", text_style))
+    story.append(Spacer(1, 10))
+    
+    # Formatear la tabla de datos para ReportLab
+    contenido_tabla = [[str(col).capitalize() for col in datos_tabla.columns]]
+    for fila in datos_tabla.values:
+        # Convertimos decimales como 2.0 a enteros 2 para máxima estética impresa
+        contenido_tabla.append([str(int(float(celda))) if str(celda).replace('.','',1).isdigit() and float(celda).is_integer() else str(celda) for celda in fila])
+    
+    # Estilo de impresión nítido (Letras negras, líneas grises limpias)
+    t = Table(contenido_tabla)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#EADFCA")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
+        ('TEXTCOLOR', (0,1), (-1,-1), colors.black),
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('BOTTOMPADDING', (0,1), (-1,-1), 6),
+    ]))
+    
+    story.append(t)
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+# 🧠 FUNCIÓN PARA EMBEBER EL PDF: Transforma el archivo en un formato que el navegador puede dibujar
+def mostrar_pdf_embebido(bytes_pdf):
+    base64_pdf = base64.b64encode(bytes_pdf).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="450" style="border:1px solid #EADFCA; border-radius:5px;"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)
 
 # ==========================================
 # PÁGINA 1: SEGUIMIENTO DE TAREAS
@@ -27,6 +81,25 @@ if opcion_pagina == "📋 Seguimiento de Tareas":
     
     st.subheader(f"Estado de entregas de: {alumno_sel}")
     st.table(tabla_final)
+    
+    # 📑 ACCIONES DE BOLETA (Generar, Embeber y Descargar)
+    st.markdown("---")
+    st.subheader("📥 Tu Boleta de Tareas Digital")
+    
+    bytes_boleta = generar_pdf_oficial(alumno_sel, tabla_final, "Seguimiento de Tareas")
+    
+    # Visualización Embebida en Pantalla
+    st.write("👀 **Vista previa de tu documento oficial:**")
+    mostrar_pdf_embebido(bytes_boleta)
+    
+    # Botón de Descarga Directa
+    st.download_button(
+        label="📥 Descargar mi Boleta de Tareas (PDF)",
+        data=bytes_boleta,
+        file_name=f"Boleta_Tareas_{alumno_sel.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 
 # ==========================================
 # PÁGINA 2: CONTROL DE ASISTENCIAS DGETI
@@ -35,29 +108,18 @@ elif opcion_pagina == "📆 Alertas de Asistencia DGETI":
     st.title("📆 Control de Horas de Clase y Asistencias")
     st.write("Conforme al reglamento de la DGETI, el 21% de inasistencias en horas acumuladas causa baja automática.")
     
-    # Leer la tabla completa de asistencias de SQL (las 72 filas)
     df_asist = pd.read_sql("SELECT * FROM asistencias", engine)
-    
     alumno_sel = st.selectbox("Selecciona tu nombre para verificar tu estatus:", df_asist["nombre"].unique(), key="asistencias_sel")
     
-    # 🧮 FILTRADO ACUMULATIVO: Obtenemos todas las semanas que le pertenecen a ese alumno
     registros_alumno = df_asist[df_asist["nombre"] == alumno_sel]
-    
-    # 🧠 TRUCO DE CALIBRACIÓN: Rellenamos los vacíos de 'asis_max' en la memoria antes de sumar
     df_asist["asis_max"] = df_asist["asis_max"].ffill()
     maximos_limpios = df_asist[df_asist["nombre"] == alumno_sel]["asis_max"]
 
-    # 🔄 SUMATORIA TOTAL DINÁMICA: Python calcula las horas de todas las semanas que han transcurrido
     horas_maximas_acumuladas = int(maximos_limpios.sum())
     horas_asistidas_totales = int(registros_alumno["asistencia"].sum())
-    
-    # Resta analítica sobre el total real del semestre transcurrido hasta hoy (16 horas actuales)
     horas_faltas_totales = horas_maximas_acumuladas - horas_asistidas_totales
-    
-    # Porcentaje de faltas real y calibrado (Faltas Totales / Horas Transcurridas Totales)
     porcentaje_faltas_real = (horas_faltas_totales / horas_maximas_acumuladas) * 100 if horas_maximas_acumuladas > 0 else 0
     
-    # 📊 DESPLIEGUE VISUAL DE MÉTRICAS CALIBRADAS EN INTERNET
     st.subheader(f"Bitácora acumulada de: {alumno_sel}")
     
     col1, col2, col3 = st.columns(3)
@@ -68,17 +130,46 @@ elif opcion_pagina == "📆 Alertas de Asistencia DGETI":
     with col3:
         st.metric(label="📊 Porcentaje Real de Faltas", value=f"{porcentaje_faltas_real:.1f}%")
 
-    # 🚨 SEMÁFORO DE ALERTAS CALIBRADO DGETI
     if porcentaje_faltas_real >= 21:
-        st.error(f"🔴 **ALERTA CRÍTICA:** Has alcanzado o superado el límite del {porcentaje_faltas_real:.1f}% de inasistencias acumuladas. Riesgo inminente de BAJA en el sistema DGETI.")
+        st.error(f"🔴 **ALERTA CRÍTICA:** Has alcanzado o superado el límite del {porcentaje_faltas_real:.1f}% de inasistencias acumuladas. Riesgo inminente de BAJA.")
     elif porcentaje_faltas_real >= 15:
-        st.warning(f"🟡 **ADVERTENCIA:** Tienes un {porcentaje_faltas_real:.1f}% de inasistencias acumuladas en horas. Estás muy cerca del límite permitido (21%).")
+        st.warning(f"🟡 **ADVERTENCIA:** Tienes un {porcentaje_faltas_real:.1f}% de inasistencias acumuladas en horas. Estás muy cerca del límite.")
     else:
         st.success(f"🟢 **ESTATUS REGULAR:** Tu porcentaje de faltas es del {porcentaje_faltas_real:.1f}%. Te mantienes en situación aprobatoria.")
 
-    # Mostrar el desglose completo de las columnas de fechas del Excel
     st.markdown("---")
     st.write("📅 **Historial completo de horas asistidas por día de clase:**")
-    
     columnas_fechas = [c for c in df_asist.columns if "mayo" in c or "junio" in c or "de" in c]
-    st.table(registros_alumno[columnas_fechas])
+    
+    # Formateamos la tabla en pantalla quitando los decimales .0000 para que se vea impecable
+    df_pantalla_fechas = registros_alumno[columnas_fechas].apply(lambda x: x.astype(float).astype(int) if x.dtype == 'float64' or x.dtype == 'int64' else x)
+    st.table(df_pantalla_fechas)
+    
+    # 📆 ACCIONES DE ASISTENCIA (Generar, Embeber y Descargar)
+    st.markdown("---")
+    st.subheader("📥 Tu Reporte de Asistencia Digital")
+    
+    resumen_asistencia = f"{horas_asistidas_totales} asistencias de {horas_maximas_acumuladas} horas totales. Faltas: {horas_faltas_totales} ({porcentaje_faltas_real:.1f}%)"
+    bytes_asistencia = generar_pdf_oficial(alumno_sel, registros_alumno[columnas_fechas], "Control de Asistencia DGETI", resumen_asistencia)
+    
+    # Visualización Embebida en Pantalla
+    st.write("👀 **Vista previa de tu reporte oficial:**")
+    mostrar_pdf_embebido(bytes_asistencia)
+    
+    # Botón de Descarga Directa
+    st.download_button(
+        label="📥 Descargar mi Reporte de Asistencia (PDF)",
+        data=bytes_asistencia,
+        file_name=f"Reporte_Asistencia_{alumno_sel.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+
+# ==========================================
+# 🖨️ MÓDULO UNIVERSAL DE BOTÓN DE IMPRESIÓN (Para ambas páginas)
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.subheader("🖨️ Impresión Rápida")
+st.sidebar.write("Si deseas mandar a la impresora física esta pantalla completa de forma inmediata, utiliza el atajo oficial:")
+st.sidebar.info("💻 **Presiona las teclas:**\n**Ctrl + P** (Windows)\n**Cmd + P** (Mac)")
+st.sidebar.caption("💡 *Nota: Recuerda desmarcar 'Gráficos de fondo' en tu ventana de impresión para que la hoja salga blanca.*")
