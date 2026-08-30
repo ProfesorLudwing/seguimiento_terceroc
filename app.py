@@ -173,7 +173,7 @@ try:
             data=file_acuerdo,
             file_name="Acuerdo_de_Convivencia_3D.pdf",
             mime="application/pdf",
-            use_column_width=True
+            use_container_width=True 
         )
 except FileNotFoundError:
     st.sidebar.info("ℹ️ Archivo 'acuerdo_convivencia.pdf' no encontrado localmente.")
@@ -186,7 +186,7 @@ try:
             data=file_temario,
             file_name="Temario_Clase_3D.pdf",
             mime="application/pdf",
-            use_column_width=True
+            use_container_width=True
         )
 except FileNotFoundError:
     st.sidebar.info("ℹ️ Archivo 'temario_clase.pdf' no encontrado localmente.")
