@@ -167,7 +167,7 @@ st.sidebar.write("Descarga los lineamientos del curso:")
 
 # 1. Enlace para el Acuerdo de Convivencia
 try:
-    with open("acuerdo_convivencia.pdf", "rb") as file_acuerdo:
+    with open("./acuerdo_convivencia.pdf", "rb") as file_acuerdo:
         st.sidebar.download_button(
             label="📜 Descargar Acuerdo de Convivencia (PDF)",
             data=file_acuerdo,
@@ -180,7 +180,7 @@ except FileNotFoundError:
 
 # 2. Enlace para el Temario de la Clase
 try:
-    with open("temario_clase.pdf", "rb") as file_temario:
+    with open("./temario_clase.pdf", "rb") as file_temario:
         st.sidebar.download_button(
             label="📚 Descargar Temario de la Clase (PDF)",
             data=file_temario,
