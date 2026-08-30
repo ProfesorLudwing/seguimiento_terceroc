@@ -6,10 +6,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
-import base64
-
-
-
 
 # 1. Conexión central a la base de datos SQL de DBeaver
 engine = create_engine("sqlite:///clase")
@@ -21,7 +17,7 @@ opcion_pagina = st.sidebar.radio(
     ["📋 Seguimiento de Tareas", "📆 Alertas de Asistencia DGETI"]
 )
 
-# 🧠 FUNCIÓN MAESTRA: Fabrica el PDF oficial con fondo blanco y letras negras para impresión
+# 🧠 FUNCIÓN MAESTRA: Fabrica las boletas oficiales en PDF con formato de impresión limpio
 def generar_pdf_oficial(nombre_alumno, datos_tabla, tipo_reporte, metricas_texto=""):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
@@ -31,20 +27,16 @@ def generar_pdf_oficial(nombre_alumno, datos_tabla, tipo_reporte, metricas_texto
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, textColor=colors.black, spaceAfter=10)
     text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=11, textColor=colors.black, spaceAfter=15)
     
-    # Encabezado institucional en el PDF
     story.append(Paragraph(f"<b>REPORTE OFICIAL: {tipo_reporte.upper()}</b>", title_style))
     story.append(Paragraph(f"<b>Estudiante:</b> {nombre_alumno}", text_style))
     if metricas_texto:
         story.append(Paragraph(f"<b>Resumen de Rendimiento:</b> {metricas_texto}", text_style))
     story.append(Spacer(1, 10))
     
-    # Formatear la tabla de datos para ReportLab
     contenido_tabla = [[str(col).capitalize() for col in datos_tabla.columns]]
     for fila in datos_tabla.values:
-        # Convertimos decimales como 2.0 a enteros 2 para máxima estética impresa
         contenido_tabla.append([str(int(float(celda))) if str(celda).replace('.','',1).isdigit() and float(celda).is_integer() else str(celda) for celda in fila])
     
-    # Estilo de impresión nítido (Letras negras, líneas grises limpias)
     t = Table(contenido_tabla)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#EADFCA")),
@@ -79,10 +71,8 @@ if opcion_pagina == "📋 Seguimiento de Tareas":
     st.subheader(f"Estado de entregas de: {alumno_sel}")
     st.table(tabla_final)
     
-    # 📥 ACCIONES DE BOLETA DIGITAL (Solo el botón limpio y directo)
     st.markdown("---")
     st.subheader("📥 Descarga tu Boleta de Tareas")
-    
     bytes_boleta = generar_pdf_oficial(alumno_sel, tabla_final, "Seguimiento de Tareas")
     
     st.download_button(
@@ -133,15 +123,12 @@ elif opcion_pagina == "📆 Alertas de Asistencia DGETI":
     st.write("📅 **Historial completo de horas asistidas por día de clase:**")
     columnas_fechas = [c for c in df_asist.columns if "mayo" in c or "junio" in c or "de" in c]
     
-    # Versión protegida contra celdas vacías (NaN) que deja números enteros perfectos
     df_pantalla_fechas = registros_alumno[columnas_fechas].fillna(0).astype(float).astype(int)
     st.table(df_pantalla_fechas)
     
-    # 📥 ACCIONES DE ASISTENCIA DIGITAL (Solo el botón limpio y directo)
     st.markdown("---")
     st.subheader("📥 Descarga tu Reporte de Asistencia")
-    
-    resumen_asistencia = f"{horas_asistidas_totales} asistencias de {horas_maximas_acumuladas} horas totales. Faltas: {horas_faltas_totales} ({porcentaje_faltas_real:.1f}%)"
+    resumen_asistencia = f"{horas_asistidas_totales} asistencias de {horas_maximas_acumuladas} hrs. Faltas: {horas_faltas_totales} ({porcentaje_faltas_real:.1f}%)"
     bytes_asistencia = generar_pdf_oficial(alumno_sel, registros_alumno[columnas_fechas], "Control de Asistencia DGETI", resumen_asistencia)
     
     st.download_button(
@@ -153,71 +140,41 @@ elif opcion_pagina == "📆 Alertas de Asistencia DGETI":
     )
 
 # ==========================================
-# 🖨️ MÓDULO UNIVERSAL DE BOTÓN DE IMPRESIÓN (Para la barra lateral)
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.subheader("🖨 Honorarios e Impresión Rápida")
-st.sidebar.write("Para mandar a la impresora física esta pantalla completa de forma inmediata, utiliza el atajo:")
-st.sidebar.info("💻 **Presiona las teclas:**\n**Ctrl + P** (Windows)\n**Cmd + P** (Mac)")
-st.sidebar.caption("💡 *Nota: Recuerda desmarcar 'Gráficos de fondo' en la ventana de impresión para que la hoja salga blanca.*")
-
-
-# ==========================================
-# 📂 COMPONENTES INSTITUCIONALES (Descarga de Documentos Fijos)
-# ==========================================
-# ==========================================
-# 📂 COMPONENTES INSTITUCIONALES (Apertura en Pestaña Nueva)
+# 📂 COMPONENTES INSTITUCIONALES (Descarga Directa Segura)
 # ==========================================
 st.sidebar.markdown("---")
 st.sidebar.subheader("📂 Documentos Oficiales")
-st.sidebar.write("Consulta los lineamientos del curso en una pestaña nueva:")
+st.sidebar.write("Descarga los lineamientos del curso:")
 
-# 1. Enlace para el Acuerdo de Convivencia en pestaña nueva
 try:
     with open("./acuerdo_convivencia.pdf", "rb") as file_acuerdo:
-        bytes_acuerdo = file_acuerdo.read()
-        b64_acuerdo = base64.b64encode(bytes_acuerdo).decode('utf-8')
-        
-        # Generamos el botón estético color crema para la barra lateral que abre pestaña nueva
-        st.sidebar.markdown(f'''
-            <a href="data:application/pdf;base64,{b64_acuerdo}" target="_blank" style="
-                display: inline-block;
-                width: 100%;
-                text-align: center;
-                background-color: #EADFCA;
-                color: #000000;
-                padding: 10px 0px;
-                font-weight: bold;
-                text-decoration: none;
-                border-radius: 5px;
-                margin-bottom: 12px;
-                border: 1px solid #000000;
-            ">📜 Acuerdo de Convivencia</a>
-        ''', unsafe_allow_html=True)
+        st.sidebar.download_button(
+            label="📜 Descargar Acuerdo de Convivencia (PDF)",
+            data=file_acuerdo,
+            file_name="Acuerdo_de_Convivencia_3D.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 except FileNotFoundError:
     st.sidebar.info("ℹ️ Archivo 'acuerdo_convivencia.pdf' no encontrado.")
 
-# 2. Enlace para el Temario de la Clase en pestaña nueva
 try:
     with open("./temario_clase.pdf", "rb") as file_temario:
-        bytes_temario = file_temario.read()
-        b64_temario = base64.b64encode(bytes_temario).decode('utf-8')
-        
-        # Generamos el segundo botón estético color crema para la barra lateral que abre pestaña nueva
-        st.sidebar.markdown(f'''
-            <a href="data:application/pdf;base64,{b64_temario}" target="_blank" style="
-                display: inline-block;
-                width: 100%;
-                text-align: center;
-                background-color: #EADFCA;
-                color: #000000;
-                padding: 10px 0px;
-                font-weight: bold;
-                text-decoration: none;
-                border-radius: 5px;
-                margin-bottom: 10px;
-                border: 1px solid #000000;
-            ">📚 Temario de la Clase</a>
-        ''', unsafe_allow_html=True)
+        st.sidebar.download_button(
+            label="📚 Descargar Temario de la Clase (PDF)",
+            data=file_temario,
+            file_name="Temario_Clase_3D.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 except FileNotFoundError:
     st.sidebar.info("ℹ️ Archivo 'temario_clase.pdf' no encontrado.")
+
+# ==========================================
+# 🖨️ MÓDULO UNIVERSAL DE BOTÓN DE IMPRESIÓN
+# ==========================================
+st.sidebar.markdown("---")
+st.sidebar.subheader("🖨️ Impresión Rápida")
+st.sidebar.write("Para mandar a la impresora física esta pantalla completa de forma inmediata, utiliza el atajo:")
+st.sidebar.info("💻 **Presiona las teclas:**\n**Ctrl + P** (Windows)\n**Cmd + P** (Mac)")
+st.sidebar.caption("💡 *Nota: Recuerda desmarcar 'Gráficos de fondo' en la ventana de impresión para que la hoja salga blanca.*")
